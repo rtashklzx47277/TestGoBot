@@ -18,20 +18,14 @@ type Video struct {
 	Id            string
 	Url           string
 	Title         string
-	Description   string
 	Thumbnail     string
 	Length        tools.Duration
-	ViewCount     int
 	LiveStatus    int
-	PublishedTime tools.Time
 	ScheduledTime tools.Time
 	StartTime     tools.Time
 	EndTime       tools.Time
-	Comment       bool
-	Member        bool
 	Live          bool
 	Private       bool
-	Music         bool
 	Author        Channel
 }
 
@@ -57,23 +51,17 @@ func (video Video) Map() map[string]any {
 	if video.Private {
 		videoMap = map[string]any{
 			"Title":         nil,
-			"Description":   nil,
 			"Length":        nil,
-			"ViewCount":     nil,
 			"LiveStatus":    nil,
-			"PublishedTime": nil,
 			"ScheduledTime": nil,
 			"StartTime":     nil,
 			"EndTime":       nil,
 		}
 	} else {
 		videoMap = map[string]any{
-			"Title":         video.Title,
-			"Description":   video.Description,
-			"Length":        video.Length.String(),
-			"ViewCount":     video.ViewCount,
-			"LiveStatus":    video.LiveStatus,
-			"PublishedTime": video.PublishedTime.String(),
+			"Title":      video.Title,
+			"Length":     video.Length.String(),
+			"LiveStatus": video.LiveStatus,
 		}
 
 		if video.Live {
@@ -97,11 +85,8 @@ func (video Video) Map() map[string]any {
 
 	videoMap["Id"] = video.Id
 	videoMap["ChannelId"] = video.Author.Id
-	videoMap["Comment"] = video.Comment
-	videoMap["Member"] = video.Member
 	videoMap["Live"] = video.Live
 	videoMap["Private"] = video.Private
-	videoMap["Music"] = video.Music
 
 	return videoMap
 }
@@ -115,15 +100,11 @@ func getVideoStruct(data *tools.Json, videoId string) Video {
 		Id:            videoId,
 		Url:           fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoId),
 		Title:         data.Get("snippet").Get("title").String(),
-		Description:   data.Get("snippet").Get("description").String(),
 		Thumbnail:     data.Get("snippet").Get("thumbnails").Image(),
 		Length:        data.Get("contentDetails").Get("duration").Duration(),
-		ViewCount:     data.Get("statistics").Get("viewCount").Int(),
-		PublishedTime: data.Get("snippet").Get("publishedAt").Time(),
 		ScheduledTime: data.Get("liveStreamingDetails").Get("scheduledStartTime").Time(),
 		StartTime:     data.Get("liveStreamingDetails").Get("actualStartTime").Time(),
 		EndTime:       data.Get("liveStreamingDetails").Get("actualEndTime").Time(),
-		Comment:       data.Get("statistics").Exist("commentCount"),
 	}
 
 	switch data.Get("snippet").Get("liveBroadcastContent").String() {

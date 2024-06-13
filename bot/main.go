@@ -19,94 +19,92 @@ var INTERVAL = 1
 func main() {
 	initial()
 
-	for _, channel := range db.FindChannels() {
-		go func(channel youtube.Channel) {
-			YoutubeStreamNotify(channel)
+	go func() {
+		YoutubeStreamNotify()
 
-			ticker := time.NewTicker(time.Duration(INTERVAL) * time.Minute)
-			defer ticker.Stop()
+		ticker := time.NewTicker(time.Duration(INTERVAL) * time.Minute)
+		defer ticker.Stop()
 
-			for range ticker.C {
-				YoutubeStreamNotify(channel)
-			}
-		}(channel)
-	}
+		for range ticker.C {
+			YoutubeStreamNotify()
+		}
+	}()
 
 	select {}
 }
 
-func YoutubeStreamNotify(channel youtube.Channel) {
-	defer func() {
-		if r := recover(); r != nil {
-			tools.DiscordNotify(s, "Youtube", channel.Title)
-			tools.ErrorRecord(r)
-		}
-	}()
+func YoutubeStreamNotify() {
+	for _, channel := range db.FindChannels() {
+		defer func() {
+			if r := recover(); r != nil {
+				tools.DiscordNotify(s, "Youtube", channel.Title)
+				tools.ErrorRecord(r)
+			}
+		}()
 
-	defer fmt.Printf("%-20s Youtube notification end!\n", channel.Title)
+		defer fmt.Printf("%-20s Youtube notification end!\n", channel.Title)
 
-	channelId, discordChannelId := channel.Id, channel.DiscordChannelId
+		channelId, discordChannelId := channel.Id, channel.DiscordChannelId
 
-	channel, err := youtube.GetChannel(channelId)
-	if err != nil {
-		panic(err)
-	}
-
-	baseEmbed := discord.BaseEmbed("Youtube", channel.Title, channel.Url, channel.Icon)
-
-	videoIds := db.Distinct("video", channelId)
-	videos, err := youtube.GetPlaylistItems(strings.Replace(channelId, "UC", "UU", 1), 3)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, video := range videos {
-		if tools.IsContain(videoIds, video.Id) {
-			continue
-		}
-
-		video, err := youtube.GetVideo(video.Id)
+		channel, err := youtube.GetChannel(channelId)
 		if err != nil {
 			panic(err)
 		}
 
-		baseEmbed.NewNotify("", video).Send(s, discordChannelId)
-		db.Insert("Video", video.Map())
-	}
+		baseEmbed := discord.BaseEmbed("Youtube", channel.Title, channel.Url, channel.Icon)
 
-	oldVideos := db.FindLivestreams(channelId)
-	newVideos, err := youtube.GetVideos(db.Distinct("livestream", channelId))
-	if err != nil {
-		panic(err)
-	}
+		videoIds := db.Distinct("video", channelId)
+		videos, err := youtube.GetPlaylistItems(strings.Replace(channelId, "UC", "UU", 1), 3)
+		if err != nil {
+			panic(err)
+		}
 
-	for i := range oldVideos {
-		old, new := oldVideos[i], newVideos[i]
+		for _, video := range videos {
+			if IsContain(videoIds, video.Id) {
+				continue
+			}
 
-		if new.Private {
-			new, err = youtube.GetVideo(new.Id)
+			video, err := youtube.GetVideo(video.Id)
 			if err != nil {
 				panic(err)
 			}
 
+			if video.LiveStatus != 0 {
+				baseEmbed.NewNotify(video).Send(s, discordChannelId)
+			}
+
+			db.Insert("Video", video.Map())
+		}
+
+		oldVideos := db.FindLivestreams(channelId)
+		newVideos, err := youtube.GetVideos(db.Distinct("livestream", channelId))
+		if err != nil {
+			panic(err)
+		}
+
+		for i := range oldVideos {
+			old, new := oldVideos[i], newVideos[i]
+
 			if new.Private {
-				thumbnail, err := tools.ImageUpload(old.Thumbnail)
+				new, err = youtube.GetVideo(new.Id)
 				if err != nil {
 					panic(err)
 				}
 
-				baseEmbed.New(old.Title, old.Url, "預定直播已被取消了！", thumbnail).Send(s, discordChannelId)
-				db.Update("Video", old.Id, "Private", new.Private)
+				if new.Private {
+					baseEmbed.New(old.Title, old.Url, "預定直播已被取消了！", old.Thumbnail).Send(s, discordChannelId)
+					db.Update("Video", old.Id, "Private", new.Private)
+				}
+			} else if old.ScheduledTime != new.ScheduledTime {
+				baseEmbed.New(new.Title, new.Url, "直播預定時間變更了！", new.Thumbnail).Change(old.ScheduledTime.String("full"), new.ScheduledTime.String("full")).Send(s, discordChannelId)
+				db.Update("Video", new.Id, "ScheduledTime", new.ScheduledTime.String())
+			} else if old.LiveStatus == 1 && new.LiveStatus == 2 {
+				baseEmbed.New(new.Title, new.Url, "直播串流開始了！", new.Thumbnail).StartTime(new.StartTime).Send(s, discordChannelId)
+				db.Update("Video", new.Id, "LiveStatus", new.LiveStatus, "StartTime", new.StartTime.String())
+			} else if old.LiveStatus == 2 && new.LiveStatus == 0 {
+				baseEmbed.New(new.Title, new.Url, "直播串流結束了！", new.Thumbnail).EndTime(new.EndTime, new.Length).Send(s, discordChannelId)
+				db.Update("Video", new.Id, "LiveStatus", new.LiveStatus, "EndTime", new.EndTime.String(), "Length", new.Length.String())
 			}
-		} else if old.ScheduledTime != new.ScheduledTime {
-			baseEmbed.New(new.Title, new.Url, "直播預定時間變更了！", new.Thumbnail).CheckAuthor(new.Author.Id).Change(old.ScheduledTime.String("full"), new.ScheduledTime.String("full")).Send(s, discordChannelId)
-			db.Update("Video", new.Id, "ScheduledTime", new.ScheduledTime.String())
-		} else if old.LiveStatus == 1 && new.LiveStatus == 2 {
-			baseEmbed.New(new.Title, new.Url, "直播串流開始了！", new.Thumbnail).CheckAuthor(new.Author.Id).StartTime(new.StartTime).Send(s, discordChannelId)
-			db.Update("Video", new.Id, "LiveStatus", new.LiveStatus, "StartTime", new.StartTime.String())
-		} else if old.LiveStatus == 2 && new.LiveStatus == 0 {
-			baseEmbed.New(new.Title, new.Url, "直播串流結束了！", new.Thumbnail).CheckAuthor(new.Author.Id).EndTime(new.EndTime, new.Length).Send(s, discordChannelId)
-			db.Update("Video", new.Id, "LiveStatus", new.LiveStatus, "EndTime", new.EndTime.String(), "Length", new.Length.String())
 		}
 	}
 }

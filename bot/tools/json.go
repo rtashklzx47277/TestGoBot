@@ -124,7 +124,7 @@ func (js *Json) Image() string {
 		}
 	}
 
-	return DefaultImage
+	return "https://imgur.com/2wAkxNb.png"
 }
 
 func (js *Json) String() string {
@@ -160,14 +160,6 @@ func (js *Json) Int() int {
 	}
 
 	return 0
-}
-
-func (js *Json) Bool() bool {
-	if b, ok := (js.Data).(bool); ok {
-		return b
-	}
-
-	return false
 }
 
 func (js *Json) Time() Time {

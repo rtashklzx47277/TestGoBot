@@ -36,16 +36,15 @@ func (mySQL *MySQL) FindChannels() []youtube.Channel {
 	for rows.Next() {
 		var channel youtube.Channel
 
-		var customId, title, discordChannelId sql.NullString
+		var customId, title sql.NullString
 
-		err := rows.Scan(&channel.Id, &customId, &title)
+		err := rows.Scan(&channel.Id, &customId, &title, &channel.DiscordChannelId)
 		if err != nil {
 			fmt.Println(err)
 		}
 
 		channel.CustomId = handleNullString(customId)
 		channel.Title = handleNullString(title)
-		channel.DiscordChannelId = handleNullString(discordChannelId)
 		channel.Url = fmt.Sprintf("https://www.youtube.com/channel/%s", channel.Id)
 
 		channels = append(channels, channel)
@@ -55,9 +54,8 @@ func (mySQL *MySQL) FindChannels() []youtube.Channel {
 }
 
 func (mySQL *MySQL) FindLivestreams(channelId string) []youtube.Video {
-	query := "SELECT DISTINCT Id, Video.ChannelId, Title, LiveStatus, ScheduledTime FROM Video LEFT JOIN Collab ON Video.Id = Collab.VideoId " +
-		"WHERE (Video.ChannelId = ? OR Collab.ChannelId = ?) AND LiveStatus <> ? AND Private = ?"
-	rows, err := mySQL.db.Query(query, channelId, channelId, 0, 0)
+	query := "SELECT DISTINCT Id, Title, LiveStatus, ScheduledTime FROM Video WHERE ChannelId = ? AND LiveStatus <> ? AND Private = ?"
+	rows, err := mySQL.db.Query(query, channelId, 0, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -70,7 +68,7 @@ func (mySQL *MySQL) FindLivestreams(channelId string) []youtube.Video {
 		var title, scheduledTime sql.NullString
 		var liveStatus sql.NullInt64
 
-		err := rows.Scan(&livestream.Id, &livestream.Author.Id, &title, &liveStatus, &scheduledTime)
+		err := rows.Scan(&livestream.Id, &title, &liveStatus, &scheduledTime)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -79,15 +77,8 @@ func (mySQL *MySQL) FindLivestreams(channelId string) []youtube.Video {
 		livestream.LiveStatus = handleNullInt(liveStatus)
 		livestream.ScheduledTime = stringToTime(handleNullString(scheduledTime))
 
-		if channelId == livestream.Author.Id {
-			livestream.Thumbnail = fmt.Sprintf("/bot/media/Youtube/%s/Video/%s.jpg", channelId, livestream.Id)
-		} else {
-			livestream.Thumbnail = fmt.Sprintf("/bot/media/Youtube/%s/Collab/%s.jpg", channelId, livestream.Id)
-		}
-
+		livestream.Thumbnail = fmt.Sprintf("https://i.ytimg.com/vi/%s/maxresdefault.jpg", livestream.Id)
 		livestream.Url = fmt.Sprintf("https://www.youtube.com/watch?v=%s", livestream.Id)
-
-		livestream.Author.Url = fmt.Sprintf("https://www.youtube.com/channel/%s", livestream.Author.Id)
 
 		livestreams = append(livestreams, livestream)
 	}
@@ -104,8 +95,8 @@ func (mySQL *MySQL) Distinct(target, channelId string) []string {
 		query = "SELECT DISTINCT Id FROM Video WHERE ChannelId = ?"
 		values = append(values, channelId)
 	case "livestream":
-		query = "SELECT DISTINCT Video.Id FROM Video LEFT JOIN Collab ON Video.Id = Collab.VideoId WHERE (Video.ChannelId = ? OR Collab.ChannelId = ?) AND Video.LiveStatus <> ? AND Video.Private = ?"
-		values = append(values, channelId, channelId, 0, 0)
+		query = "SELECT DISTINCT Id FROM Video WHERE ChannelId = ? AND LiveStatus <> ? AND Video.Private = ?"
+		values = append(values, channelId, 0, 0)
 	}
 
 	rows, err := mySQL.db.Query(query, values...)
@@ -123,6 +114,7 @@ func (mySQL *MySQL) Distinct(target, channelId string) []string {
 		if err != nil {
 			fmt.Println(err)
 		}
+
 		result = append(result, value)
 	}
 

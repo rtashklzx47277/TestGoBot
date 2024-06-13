@@ -1,0 +1,2 @@
+2024/06/13 03:19:26 [DG0] wsapi.go:302:heartbeat() error sending heartbeat to gateway wss://gateway.discord.gg/?v=9&encoding=json, websocket: close sent
+2024/06/13 03:21:56 [DG0] wsapi.go:302:heartbeat() error sending heartbeat to gateway wss://gateway.discord.gg/?v=9&encoding=json, websocket: close sent

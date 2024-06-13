@@ -103,15 +103,6 @@ func handleNullInt(d sql.NullInt64) int {
 	return 0
 }
 
-func stringToDuration(s string) tools.Duration {
-	ds, err := time.ParseDuration(fmt.Sprintf("%ss", strings.Replace(strings.Replace(s, ":", "h", 1), ":", "m", 1)))
-	if err != nil {
-		return tools.Duration(0)
-	}
-
-	return tools.Duration(ds)
-}
-
 func stringToTime(s string) tools.Time {
 	t, err := time.Parse("2006-01-02 15:04:05", string(s))
 	if err != nil {

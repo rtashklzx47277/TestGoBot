@@ -8,24 +8,8 @@ import (
 type Time time.Time
 type Duration time.Duration
 
-func (t Time) InRange(hour int) bool {
-	return time.Now().UTC().Sub(time.Time(t)) <= time.Duration(hour)*time.Hour
-}
-
 func (t Time) Stamp() int {
 	return int(time.Time(t).Unix())
-}
-
-func (t Time) Format(layout string) string {
-	return time.Time(t).Format(layout)
-}
-
-func (t1 Time) After(t2 Time) bool {
-	return time.Time(t1).After(time.Time(t2))
-}
-
-func (t Time) UTC() Time {
-	return Time(time.Time(t).UTC())
 }
 
 func (t Time) String(format ...string) string {
@@ -36,7 +20,7 @@ func (t Time) String(format ...string) string {
 	var ts string
 
 	if len(format) == 0 {
-		ts = t.Format("2006-01-02 15:04:05")
+		ts = time.Time(t).Format("2006-01-02 15:04:05")
 	} else {
 		switch format[0] {
 		case "time":

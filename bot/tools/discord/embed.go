@@ -4,7 +4,6 @@ import (
 	"GoBot/tools"
 	"GoBot/tools/youtube"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -106,68 +105,14 @@ func (embed *Embed) EndTime(time tools.Time, duration tools.Duration) *Embed {
 	return embed
 }
 
-func (embed *Embed) NewNotify(status string, video youtube.Video) *Embed {
-	if status == "collab" {
-		embed = embed.CheckAuthor(video.Author.Id)
-	}
-
+func (embed *Embed) NewNotify(video youtube.Video) *Embed {
 	if !video.Live && video.LiveStatus == 0 {
-		var description string
-
-		switch status {
-		case "":
-			description = "上傳了新影片！"
-		case "member":
-			description = "上傳了新的會員限定影片！"
-		case "collab":
-			description = "有新的連動影片！"
-		}
-
-		embed = embed.New(video.Title, video.Url, description, video.Thumbnail)
+		embed = embed.New(video.Title, video.Url, "上傳了新影片！", video.Thumbnail)
 	} else if video.LiveStatus == 1 {
-		var description string
-
-		switch status {
-		case "":
-			description = "建立了新的待機台！"
-		case "member":
-			description = "建立了新的會員限定待機台！"
-		case "collab":
-			description = "有新的連動直播預定！"
-		}
-
-		embed = embed.New(video.Title, video.Url, description, video.Thumbnail).UpcomingTime(video.ScheduledTime)
+		embed = embed.New(video.Title, video.Url, "建立了新的待機台！", video.Thumbnail).UpcomingTime(video.ScheduledTime)
 	} else if video.LiveStatus == 2 {
-		var description string
-
-		switch status {
-		case "":
-			description = "直播串流開始了！"
-		case "member":
-			description = "會員限定直播串流開始了！"
-		case "collab":
-			description = "連動直播開始了！"
-		}
-
-		embed = embed.New(video.Title, video.Url, description, video.Thumbnail).StartTime(video.StartTime)
+		embed = embed.New(video.Title, video.Url, "直播串流開始了！", video.Thumbnail).StartTime(video.StartTime)
 	}
-
-	return embed
-}
-
-func (embed *Embed) CheckAuthor(channelId string) *Embed {
-	if embed.Author.URL != "" && strings.Split(embed.Author.URL, "/")[3] == channelId {
-		return embed
-	}
-
-	channel, err := youtube.GetChannel(channelId)
-	if err != nil {
-		return embed
-	}
-
-	embed.Author.Name = channel.Title
-	embed.Author.URL = channel.Url
-	embed.Author.IconURL = channel.Icon
 
 	return embed
 }
