@@ -64,37 +64,29 @@ func GetChannel(channelId string) (Channel, error) {
 	return channel, nil
 }
 
-func GetPlaylistItems(playlistId string, num int) ([]Video, error) {
+func GetPlaylistItems(playlistId string) ([]Video, error) {
 	var videos []Video
-	var pageToken string
 
-	for {
-		path := fmt.Sprintf("playlistItems?part=snippet&playlistId=%s&maxResults=%d&pageToken=%s", playlistId, num, pageToken)
-		data, err := getData(path)
-		if err != nil {
-			return []Video{}, err
+	path := fmt.Sprintf("playlistItems?part=snippet&playlistId=%s&maxResults=3", playlistId)
+
+	data, err := getData(path)
+	if err != nil {
+		return []Video{}, err
+	}
+
+	if !data.Exist("items") {
+		return []Video{}, errors.New("fail to get data")
+	}
+
+	for _, item := range data.Get("items").JsonArray() {
+		video := Video{
+			Id:        item.Get("snippet").Get("resourceId").Get("videoId").String(),
+			Url:       fmt.Sprintf("https://www.youtube.com/watch?v=%s", item.Get("snippet").Get("resourceId").Get("videoId").String()),
+			Title:     item.Get("snippet").Get("title").String(),
+			Thumbnail: item.Get("snippet").Get("thumbnails").Image(),
 		}
 
-		if !data.Exist("items") {
-			return []Video{}, errors.New("fail to get data")
-		}
-
-		pageToken = data.Get("nextPageToken").String()
-
-		for _, item := range data.Get("items").JsonArray() {
-			video := Video{
-				Id:        item.Get("snippet").Get("resourceId").Get("videoId").String(),
-				Url:       fmt.Sprintf("https://www.youtube.com/watch?v=%s", item.Get("snippet").Get("resourceId").Get("videoId").String()),
-				Title:     item.Get("snippet").Get("title").String(),
-				Thumbnail: item.Get("snippet").Get("thumbnails").Image(),
-			}
-
-			videos = append(videos, video)
-		}
-
-		if pageToken == "" || num != 50 {
-			break
-		}
+		videos = append(videos, video)
 	}
 
 	return videos, nil

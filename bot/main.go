@@ -14,7 +14,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var INTERVAL = 1
+var INTERVAL = 30
 
 func main() {
 	initial()
@@ -22,7 +22,7 @@ func main() {
 	go func() {
 		YoutubeStreamNotify()
 
-		ticker := time.NewTicker(time.Duration(INTERVAL) * time.Minute)
+		ticker := time.NewTicker(time.Duration(INTERVAL) * time.Second)
 		defer ticker.Stop()
 
 		for range ticker.C {
@@ -54,7 +54,8 @@ func YoutubeStreamNotify() {
 		baseEmbed := discord.BaseEmbed("Youtube", channel.Title, channel.Url, channel.Icon)
 
 		videoIds := db.Distinct("video", channelId)
-		videos, err := youtube.GetPlaylistItems(strings.Replace(channelId, "UC", "UU", 1), 3)
+
+		videos, err := youtube.GetPlaylistItems(strings.Replace(channelId, "UC", "UU", 1))
 		if err != nil {
 			panic(err)
 		}
@@ -69,10 +70,7 @@ func YoutubeStreamNotify() {
 				panic(err)
 			}
 
-			if video.LiveStatus != 0 {
-				baseEmbed.NewNotify(video).Send(s, discordChannelId)
-			}
-
+			baseEmbed.NewNotify(video).Send(s, discordChannelId)
 			db.Insert("Video", video.Map())
 		}
 
